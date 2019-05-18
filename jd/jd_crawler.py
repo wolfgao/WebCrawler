@@ -27,28 +27,39 @@ def ua(uapools):
 
 for i in range(1,101):
     print("-----第"+str(i)+"页商品-----")
-    url="https://s.taobao.com/Search?keyword="+key+"&enc=utf-8&page="+str(i+1)
+    url="https://search.jd.com/Search?keyword="+key+"&enc=utf-8&page="+str(i+1)
     ua(uapools)
     data=urllib.request.urlopen(url).read().decode("utf-8","ignore")
 
-    #开始过滤
-    #拿到书名
-    item_id_pat = '<strong class="J_(.*?)" data-done'
-    item_id = re.compile(item_id_pat, re.S).findall(data)
-    id_url="https://item.jd.com/"+item_id+".html"
-    print(id_url)
-    item_data = urllib.request.urlopen(id_url).read().decode("utf-8","ignore")
+    #拿到item id 列表
+    item_id_pat = '<li data-sku="(.*?)" class="gl-item">'
+    item_ids = re.compile(item_id_pat, re.S).findall(data)
+    print(item_ids)
+    for item_id in item_ids:
+        id_url="https://item.jd.com/"+item_id+".html"
+        print(id_url)
+        item_data = urllib.request.urlopen(id_url).read().decode("gbk","ignore")
 
-    title_pat='<div class="sku-name">(.*?)</div>'
-    comment_pat='<a class="count J-comm-25700505099" href="#none">400+</a>'
+        title_pat = '<div class="sku-name">(.*?)</div>'
+        comment_pat = '<a class="count J-comm-'+item_id+'" href="#none">(.*?)</a>'
+        price_pat = '<strong class="p-price" id="jd-price">(.*?)</strong>'
 
+        title = re.compile(title_pat,re.S).findall(item_data)
+        if len(title) > 0:
+            title = title[0]
+            print(title)
 
+        ## TODO：京东屏蔽了这部分，需要看一下js代码才能解开
+        comments = re.compile(comment_pat, re.S).findall(item_data)
+        if len(comments) >0 :
+            comment = comments[0]
+            print(comment)
+        ## TODO：京东屏蔽了这部分，需要看一下代码才能解码
+        price = re.compile(price_pat, re.S).findall(item_data)
+        if len(price) > 0:
+            price = price[0]
+            print(price)
 
-    title_link = re.compile(title_link_pat,re.S).findall(data)
-    print(title_link)
+        ## TODO： 可以尝试爬一下图片的link，或者下载图片？
 
-    #TODO：拿到价格
-
-    #TODO：拿到评论数
-
-    #TODO：存储到一个csv文件中
+        ## TODO：这部分完成内容存储
