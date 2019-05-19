@@ -3,6 +3,8 @@ import re
 import http.cookiejar
 import random
 import ssl
+import time
+from selenium import webdriver
 
 keyname="绘本"
 key=urllib.request.quote(keyname)
@@ -38,28 +40,56 @@ for i in range(1,101):
     for item_id in item_ids:
         id_url="https://item.jd.com/"+item_id+".html"
         print(id_url)
+
         item_data = urllib.request.urlopen(id_url).read().decode("gbk","ignore")
 
         title_pat = '<div class="sku-name">(.*?)</div>'
-        comment_pat = '<a class="count J-comm-'+item_id+'" href="#none">(.*?)</a>'
+        #comment_pat = '<a class="count J-comm-'+item_id+'" href="#none">(.*?)</a>'
         price_pat = '<strong class="p-price" id="jd-price">(.*?)</strong>'
-
+        pic_pat = '<img data-img="1" width="350" height="350" src="//(.*?)" alt="'
         title = re.compile(title_pat,re.S).findall(item_data)
         if len(title) > 0:
             title = title[0]
             print(title)
 
-        ## TODO：京东屏蔽了这部分，需要看一下js代码才能解开
-        comments = re.compile(comment_pat, re.S).findall(item_data)
-        if len(comments) >0 :
-            comment = comments[0]
-            print(comment)
-        ## TODO：京东屏蔽了这部分，需要看一下代码才能解码
-        price = re.compile(price_pat, re.S).findall(item_data)
-        if len(price) > 0:
-            price = price[0]
-            print(price)
+        ## 京东屏蔽了这部分，经过分析，这部分是通过js 来实现的
+        ## 比如下面的回调获得，我们只要拿到skuId, 在这里就是productId
+        ## https://sclub.jd.com/comment/productPageComments.action?callback=fetchJSON_comment98vv7&productId=25700505099&score=0&sortType=5&isShadowSku=0&page=0&pageSize=10
 
-        ## TODO： 可以尝试爬一下图片的link，或者下载图片？
+        import json
+        callback_url = "https://sclub.jd.com/comment/productPageComments.action?callback=fetchJSON_comment98vv7&productId="\
+                       +str(item_id)+"&score=0&sortType=5&isShadowSku=0&page=0&pageSize=10"
+        comment_response = urllib.request.urlopen(callback_url).read().decode("gbk","ignore")
+        len_start = len("fetchJSON_comment98vv7(")
+        # 最后一个字符是')'，也要干掉
+        len_body = len(comment_response)
+
+        if len_body >0:
+            comment_json = json.loads(comment_response[len_start:len_body-2])
+            print(comment_json)
+            print("好评度： %s" %(comment_json['productCommentSummary']['goodRateShow']))
+            print("商品评价： %s" %(comment_json['productCommentSummary']['commentCountStr']))
+
+
+        #comments = re.compile(comment_pat, re.S).findall(item_data)
+        #if len(comments) >0 :
+        #    comment = comments[0]
+        #    print(comment)
+
+        ## 京东屏蔽了这部分，需要看一下代码才能解码
+        ## https://p.3.cn/prices/mgets?skuIds=J_25700505099
+
+        price_url = "https://p.3.cn/prices/mgets?skuIds=J_"+str(item_id)
+        price_response = urllib.request.urlopen(price_url).read().decode("gbk","ignore")
+        if len(price_response) > 0:
+            price = json.loads(price_response)
+            print(price[0]['op'])
+
+        ## 可以尝试爬一下图片的link，或者下载图片？
+        image_pat = '<img data-img="1" width="350" height="350" src="//(.*?)" alt="'
+        image_links = re.compile(image_pat, re.S).findall(item_data)
+        if len(image_links) >0:
+            image_link = image_links[0]
+            print(image_link)
 
         ## TODO：这部分完成内容存储
