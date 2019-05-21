@@ -44,10 +44,16 @@ for i in range(1,101):
     item_ids = re.compile(item_id_pat, re.S).findall(data)
     #print(item_ids)
     for skuid in item_ids:
-        id_url="https://item.jd.com/"+str(skuid)+".html"
-        #print(id_url)
 
-        item_data = urllib.request.urlopen(id_url).read().decode("gbk","ignore")
+        id_url="https://item.jd.com/"+str(skuid)+".html"
+        print(id_url)
+        time.sleep(8)
+        try:
+            item_data = urllib.request.urlopen(id_url).read().decode("gbk","ignore")
+        except Exception as e:
+            # 出现问题后打印log，继续爬
+            print(e)
+            continue
 
         #我们的目标是：标题，作者，评论数，好评度，图片link，价格，但是好评度，价格，评论数都是动态加载，因此我们这里只能分析js获得
         #comment_pat = '<a class="count J-comm-'+item_id+'" href="#none">(.*?)</a>'
@@ -76,12 +82,17 @@ for i in range(1,101):
         author = ''
         if len(authors) > 0 :
             author = authors[0]
-            print("作者是： %s" %(author))
-
-
+        else:
+            ## 可以从title里面获取
+            rindex = title.rfind(')')
+            lindex = title.rfind('(')
+            if rindex >0 and lindex >0:
+                author = title[lindex+1:rindex]
+        print("作者是： %s" % (author))
         ## 京东屏蔽了这部分，经过分析，这部分是通过js 来实现的
         ## 比如下面的回调获得，我们只要拿到skuId, 在这里就是productId
         ## https://sclub.jd.com/comment/productPageComments.action?callback=fetchJSON_comment98vv7&productId=25700505099&score=0&sortType=5&isShadowSku=0&page=0&pageSize=10
+        time.sleep(5)
         import json
         import jsonpath
         callback_url = "https://sclub.jd.com/comment/productCommentSummaries.action?referenceIds="+str(skuid)
@@ -91,7 +102,7 @@ for i in range(1,101):
         good_rate = ''
         if len_body >0:
             comment_json = json.loads(comment_response)
-            print(comment_json)
+            #print(comment_json)
             comment_count = str(jsonpath.jsonpath(comment_json, '$..CommentCount')[0])
             good_rate = str(jsonpath.jsonpath(comment_json, '$..GoodRateShow')[0])
             print("好评度： %s" %(good_rate))
@@ -105,14 +116,14 @@ for i in range(1,101):
 
         ## 京东屏蔽了这部分，需要看一下代码才能解码
         ## https://p.3.cn/prices/mgets?skuIds=J_25700505099
-
+        time.sleep(5)
         price_url = "https://p.3.cn/prices/mgets?skuIds=J_"+str(skuid)
         price_response = urllib.request.urlopen(price_url).read().decode("gbk","ignore")
         price = ''
         if len(price_response) > 0:
             price_json = json.loads(price_response)
             price = price_json[0]['op']
-            print(price)
+            print("售卖价格： %s" %(price))
 
         ## 可以尝试爬一下图片的link，或者下载图片？
         image_pat = '<img data-img="1" width="350" height="350" src="//(.*?)" alt="'
